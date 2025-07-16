@@ -1,9 +1,71 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>Malla Curricular Bioingeniería Médica</title>
-  <link rel="stylesheet" href="style.css" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 1rem;
+      background: #f9f9f9;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 { text-align: center; }
+    #contenedor {
+      display: flex;
+      gap: 1rem;
+    }
+    .grid {
+      flex: 3;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+    .panel-lateral {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .semestre {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .semestre h2 {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    .asignatura {
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      text-align: center;
+    }
+    .pendiente { background: #f8d7da; color: #721c24; }
+    .cursando { background: #fff3cd; color: #856404; }
+    .aprobada { background: #d4edda; color: #155724; }
+    .bloqueada { background: #e2e3e5; color: #6c757d; cursor: not-allowed; }
+    #selector-semestre { margin-top: 1rem; text-align: center; }
+    .panel {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
   <h1>Malla Curricular - Bioingeniería Médica</h1>
@@ -21,17 +83,17 @@
       <option value="2029-1">2029-1</option>
       <option value="2029-2">2029-2</option>
     </select>
-    <button id="btnVerRetrasos">Ver retrasos</button>
-    <button id="btnGuardar">Guardar progreso</button>
-    <input type="file" id="cargarArchivo" />
+    <button onclick="mostrarRetrasos()">Ver retrasos</button>
+    <button onclick="guardarProgreso()">Guardar progreso</button>
+    <input type="file" id="cargarArchivo" onchange="cargarProgreso(event)">
   </div>
 
   <div id="contenedor">
     <div class="grid" id="malla"></div>
     <div class="panel-lateral">
-      <div id="retrasos" class="panel"></div>
-      <div id="checklist" class="panel"></div>
-      <div id="impacto" class="panel"></div>
+      <div id="retrasos" class="panel">⚠️ Aquí se mostrarán los ramos con retraso</div>
+      <div id="checklist" class="panel">📋 Chequeo de requisitos</div>
+      <div id="impacto" class="panel">📆 Impacto en tiempo real</div>
     </div>
   </div>
 
