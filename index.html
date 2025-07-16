@@ -21,7 +21,7 @@
     .cursando { background: #fff3cd; color: #856404; }
     .aprobada { background: #d4edda; color: #155724; }
     .bloqueada { background: #e2e3e5; color: #6c757d; cursor: not-allowed; }
-    #retrasos { margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    #retrasos, #checklist { margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     #selector-semestre { margin-top: 1rem; text-align: center; }
   </style>
 </head>
@@ -43,6 +43,7 @@
   </div>
   <div class="grid" id="malla"></div>
   <div id="retrasos"></div>
+  <div id="checklist"></div>
 
   <script>
     const estados = ["pendiente", "cursando", "aprobada"];
@@ -95,6 +96,7 @@
               };
               localStorage.setItem("progresoMalla", JSON.stringify(progreso));
               renderMalla();
+              mostrarRetrasos();
             });
           }
 
@@ -108,30 +110,45 @@
     function mostrarRetrasos() {
       const actual = getSemestreActual();
       const retrasos = [];
+      const checklistItems = [];
 
       malla.forEach(asig => {
         const estado = progreso[asig.nombre]?.estado || "pendiente";
-        if (estado === "pendiente") {
-          const requisitos = asig.requisitos;
-          const dictado = asig.semestreAcademico;
-          const cumplidos = requisitos.every(req => progreso[req]?.estado === "aprobada");
 
-          if (!cumplidos && compararSemestres(actual, dictado) > 0) {
-            retrasos.push(`⏳ ${asig.nombre} retrasada (se dicta en ${dictado})`);
+        if (estado === "pendiente") {
+          const dictado = asig.semestreAcademico;
+
+          const requisitos = asig.requisitos;
+          const requisitosAprobados = requisitos.every(req => progreso[req]?.estado === "aprobada");
+
+          if (!requisitosAprobados && compararSemestres(actual, dictado) > 0) {
+            const retraso = compararSemestres(actual, dictado);
+            const años = Math.floor(retraso / 2);
+            const sems = retraso % 2;
+            const tiempo = `${años > 0 ? `${años} año${años > 1 ? 's' : ''}` : ''}${sems > 0 ? ` y ${sems} semestre` : ''}`.trim();
+
+            const causa = requisitos.map(r => `${r} (${progreso[r]?.estado || "pendiente"})`).join(", ");
+
+            retrasos.push(`⏳ <b>${asig.nombre}</b> debía dictarse en <b>${dictado}</b> y se retrasa al menos ${tiempo}. Requiere: ${causa}`);
+
+            checklistItems.push(`<label><input type="checkbox"> ${asig.nombre} (retraso: ${tiempo})</label>`);
           }
         }
       });
 
-      const div = document.getElementById("retrasos");
-      div.innerHTML = retrasos.length ? `<h3>🔔 Retrasos detectados:</h3><ul>${retrasos.map(r => `<li>${r}</li>`).join("")}</ul>` : "✅ Sin retrasos detectados.";
+      document.getElementById("retrasos").innerHTML = retrasos.length
+        ? `<h3>🔔 Retrasos detectados:</h3><ul>${retrasos.map(r => `<li>${r}</li>`).join("")}</ul>`
+        : "✅ Sin retrasos detectados.";
+
+      document.getElementById("checklist").innerHTML = checklistItems.length
+        ? `<h3>📋 Checklist de asignaturas retrasadas:</h3><div>${checklistItems.join("<br>")}</div>`
+        : "";
     }
 
-    // Estructura de la malla (sólo ejemplo parcial para mostrar cómo funciona)
     const malla = [
       { nombre: "Física Aplicada", semestre: 1, semestreAcademico: "2026-1", requisitos: [] },
       { nombre: "Electrónica I", semestre: 3, semestreAcademico: "2026-1", requisitos: ["Física Aplicada"] },
       { nombre: "Materiales", semestre: 4, semestreAcademico: "2026-2", requisitos: ["Física Aplicada"] }
-      // Resto de la malla aquí...
     ];
 
     renderMalla();
