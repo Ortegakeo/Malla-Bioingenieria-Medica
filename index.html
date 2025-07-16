@@ -59,6 +59,12 @@
       border-radius: 10px;
       box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     }
+    button {
+      margin-top: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -74,8 +80,12 @@
       <option value="2027-2">2027-2</option>
       <option value="2028-1">2028-1</option>
       <option value="2028-2">2028-2</option>
+      <option value="2029-1">2029-1</option>
+      <option value="2029-2">2029-2</option>
     </select>
     <button onclick="mostrarRetrasos()">Ver retrasos</button>
+    <button onclick="guardarProgreso()">Guardar progreso</button>
+    <input type="file" id="cargarArchivo" onchange="cargarProgreso(event)">
   </div>
 
   <div id="contenedor">
@@ -88,124 +98,32 @@
   </div>
 
   <script>
-    const estados = ["pendiente", "cursando", "aprobada"];
-    let progreso = JSON.parse(localStorage.getItem("progresoMalla")) || {};
-
-    function getSemestreActual() {
-      return document.getElementById("semestreActual").value;
+    function guardarProgreso() {
+      const blob = new Blob([JSON.stringify(progreso, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "progreso_malla.json";
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
-    function compararSemestres(a, b) {
-      const [aY, aS] = a.split("-").map(Number);
-      const [bY, bS] = b.split("-").map(Number);
-      return (aY - bY) * 2 + (aS - bS);
-    }
-
-    function puedeDesbloquear(asig) {
-      const actual = getSemestreActual();
-      const requisitosOk = asig.requisitos.every(req => {
-        const r = progreso[req];
-        return r?.estado === "aprobada" && compararSemestres(r.semestre, actual) < 0;
-      });
-      return requisitosOk;
-    }
-
-    function renderMalla() {
-      const contenedor = document.getElementById("malla");
-      contenedor.innerHTML = "";
-
-      for (let semestre = 1; semestre <= 10; semestre++) {
-        const bloque = document.createElement("div");
-        bloque.className = "semestre";
-        bloque.innerHTML = `<h2>Semestre ${semestre}</h2>`;
-
-        malla.filter(a => a.semestre === semestre).forEach(asig => {
-          const data = progreso[asig.nombre] || { estado: "pendiente", semestre: null };
-          const puede = puedeDesbloquear(asig);
-          const estadoClase = puede || data.estado === "aprobada" ? data.estado : "bloqueada";
-
-          const div = document.createElement("div");
-          div.className = `asignatura ${estadoClase}`;
-          div.textContent = asig.nombre;
-
-          if (estadoClase !== "bloqueada") {
-            div.addEventListener("click", () => {
-              let i = estados.indexOf(data.estado);
-              let nuevoEstado = estados[(i + 1) % estados.length];
-              progreso[asig.nombre] = {
-                estado: nuevoEstado,
-                semestre: nuevoEstado === "aprobada" ? getSemestreActual() : null
-              };
-              localStorage.setItem("progresoMalla", JSON.stringify(progreso));
-              renderMalla();
-              mostrarRetrasos();
-            });
-          }
-
-          bloque.appendChild(div);
-        });
-
-        contenedor.appendChild(bloque);
-      }
-    }
-
-    function mostrarRetrasos() {
-      const actual = getSemestreActual();
-      const retrasos = [];
-      const checklistItems = [];
-      let totalSemestresPerdidos = 0;
-
-      malla.forEach(asig => {
-        const estado = progreso[asig.nombre]?.estado || "pendiente";
-
-        if (estado === "pendiente") {
-          const dictado = asig.semestreAcademico;
-          const requisitos = asig.requisitos;
-          const requisitosAprobados = requisitos.every(req => progreso[req]?.estado === "aprobada");
-
-          if (!requisitosAprobados && compararSemestres(actual, dictado) > 0) {
-            const retraso = compararSemestres(actual, dictado);
-            totalSemestresPerdidos += retraso;
-
-            const años = Math.floor(retraso / 2);
-            const sems = retraso % 2;
-            const tiempo = `${años > 0 ? `${años} año${años > 1 ? 's' : ''}` : ''}${sems > 0 ? ` y ${sems} semestre` : ''}`.trim();
-
-            const causa = requisitos.map(r => `${r} (${progreso[r]?.estado || "pendiente"})`).join(", ");
-
-            retrasos.push(`⏳ <b>${asig.nombre}</b> debía dictarse en <b>${dictado}</b> y se retrasa al menos ${tiempo}. Requiere: ${causa}`);
-
-            checklistItems.push(`<label><input type="checkbox"> ${asig.nombre} (retraso: ${tiempo})</label>`);
-          }
+    function cargarProgreso(event) {
+      const archivo = event.target.files[0];
+      if (!archivo) return;
+      const lector = new FileReader();
+      lector.onload = function(e) {
+        try {
+          progreso = JSON.parse(e.target.result);
+          localStorage.setItem("progresoMalla", JSON.stringify(progreso));
+          renderMalla();
+          mostrarRetrasos();
+        } catch (error) {
+          alert("Archivo inválido");
         }
-      });
-
-      document.getElementById("retrasos").innerHTML = retrasos.length
-        ? `<h3>🔔 Retrasos detectados:</h3><ul>${retrasos.map(r => `<li>${r}</li>`).join("")}</ul>`
-        : "✅ Sin retrasos detectados.";
-
-      document.getElementById("checklist").innerHTML = checklistItems.length
-        ? `<h3>📋 Checklist:</h3>${checklistItems.join("<br>")}`
-        : "";
-
-      const totalAños = Math.floor(totalSemestresPerdidos / 2);
-      const totalSems = totalSemestresPerdidos % 2;
-      const tiempoTotal = totalSemestresPerdidos > 0
-        ? `${totalAños > 0 ? `${totalAños} año${totalAños > 1 ? 's' : ''}` : ''}${totalSems > 0 ? ` y ${totalSems} semestre` : ''}`.trim()
-        : null;
-
-      document.getElementById("impacto").innerHTML = tiempoTotal
-        ? `<h3>📊 Impacto total:</h3><p>Retrasos: ${retrasos.length} ramos<br>Tiempo perdido: ${tiempoTotal}</p>`
-        : "";
+      };
+      lector.readAsText(archivo);
     }
-
-    const malla = [
-      { nombre: "Física Aplicada", semestre: 1, semestreAcademico: "2026-1", requisitos: [] },
-      { nombre: "Electrónica I", semestre: 3, semestreAcademico: "2026-1", requisitos: ["Física Aplicada"] },
-      { nombre: "Materiales", semestre: 4, semestreAcademico: "2026-2", requisitos: ["Física Aplicada"] }
-    ];
-
-    renderMalla();
   </script>
 </body>
 </html>
