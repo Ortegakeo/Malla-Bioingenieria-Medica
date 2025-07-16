@@ -21,7 +21,7 @@
     .cursando { background: #fff3cd; color: #856404; }
     .aprobada { background: #d4edda; color: #155724; }
     .bloqueada { background: #e2e3e5; color: #6c757d; cursor: not-allowed; }
-    #retrasos, #checklist { margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    #retrasos, #checklist, #impacto { margin-top: 2rem; padding: 1rem; background: #fff; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
     #selector-semestre { margin-top: 1rem; text-align: center; }
   </style>
 </head>
@@ -44,6 +44,7 @@
   <div class="grid" id="malla"></div>
   <div id="retrasos"></div>
   <div id="checklist"></div>
+  <div id="impacto"></div>
 
   <script>
     const estados = ["pendiente", "cursando", "aprobada"];
@@ -111,18 +112,20 @@
       const actual = getSemestreActual();
       const retrasos = [];
       const checklistItems = [];
+      let totalSemestresPerdidos = 0;
 
       malla.forEach(asig => {
         const estado = progreso[asig.nombre]?.estado || "pendiente";
 
         if (estado === "pendiente") {
           const dictado = asig.semestreAcademico;
-
           const requisitos = asig.requisitos;
           const requisitosAprobados = requisitos.every(req => progreso[req]?.estado === "aprobada");
 
           if (!requisitosAprobados && compararSemestres(actual, dictado) > 0) {
             const retraso = compararSemestres(actual, dictado);
+            totalSemestresPerdidos += retraso;
+
             const años = Math.floor(retraso / 2);
             const sems = retraso % 2;
             const tiempo = `${años > 0 ? `${años} año${años > 1 ? 's' : ''}` : ''}${sems > 0 ? ` y ${sems} semestre` : ''}`.trim();
@@ -142,6 +145,16 @@
 
       document.getElementById("checklist").innerHTML = checklistItems.length
         ? `<h3>📋 Checklist de asignaturas retrasadas:</h3><div>${checklistItems.join("<br>")}</div>`
+        : "";
+
+      const totalAños = Math.floor(totalSemestresPerdidos / 2);
+      const totalSems = totalSemestresPerdidos % 2;
+      const tiempoTotal = totalSemestresPerdidos > 0
+        ? `${totalAños > 0 ? `${totalAños} año${totalAños > 1 ? 's' : ''}` : ''}${totalSems > 0 ? ` y ${totalSems} semestre` : ''}`.trim()
+        : null;
+
+      document.getElementById("impacto").innerHTML = tiempoTotal
+        ? `<h3>📊 Impacto total:</h3><p>Retrasos totales: ${retrasos.length} asignatura${retrasos.length > 1 ? 's' : ''}<br>Tiempo acumulado perdido: ${tiempoTotal}</p>`
         : "";
     }
 
